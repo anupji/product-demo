@@ -2,7 +2,6 @@ package com.soft.app.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.soft.app.constant.AppConstants;
 import com.soft.app.entity.Product;
 import com.soft.app.model.ProductApiRequest;
@@ -40,10 +39,26 @@ public class ProductController {
     }
 
     @PostMapping("/save")
-    public ResponseEntity<Product> saveProduct(@RequestBody Product product) {
+    public ResponseEntity<Object> saveProduct(@RequestBody ProductApiRequestBody request) {
         // Logic to save the product
-        Product savedProduct = productService.saveProduct(product);
-        return ResponseEntity.ok(savedProduct);
+        ProductApiRequest data = Optional.ofNullable(request.getData()).orElse(new ProductApiRequest());
+        JsonNode responseNode = null;
+        Long id = Optional.ofNullable(data.getId()).orElse(0L);
+        String name = Optional.ofNullable(data.getName()).orElse("");
+        Integer quantity = Optional.ofNullable(data.getQuantity()).orElse(0);
+        Double price = Optional.ofNullable(data.getPrice()).orElse(0.0);
+
+        if(id==0 || name.isEmpty() || quantity==0 || price==0.0) {
+            LOGGER.error(AppConstants.INPUT_VAL);
+            return responseUtil.setFailureResponseStatus(AppConstants.INPUT_VAL, HttpStatus.OK,AppConstants.BAD_REQUEST);
+        }
+        Product product = new Product();
+        product.setName(name);
+        product.setQuantity(quantity);
+        product.setPrice(price);
+        ResponseEntity<Object> responseObject = productService.saveProduct(product);
+        Result result = getResult(responseObject);
+        return new ResponseEntity<>(result.responseDataNode(), result.returnStatus());
     }
 
     @GetMapping("getById/{id}")
@@ -64,6 +79,11 @@ public class ProductController {
         Integer quantity = Optional.ofNullable(data.getQuantity()).orElse(0);
         Double price = Optional.ofNullable(data.getPrice()).orElse(0.0);
 
+        if(id==0 || name.isEmpty() || quantity==0 || price==0.0) {
+            LOGGER.error(AppConstants.INPUT_VAL);
+            return responseUtil.setFailureResponseStatus(AppConstants.INPUT_VAL, HttpStatus.OK,AppConstants.BAD_REQUEST);
+        }
+
         JsonNode apiJsonRequest = objectMapper.valueToTree(data);
         String apiRequest = apiJsonRequest.toString();
         JsonNode searchVehicleResponse = null;
@@ -83,12 +103,21 @@ public class ProductController {
 
         ResponseEntity<Object> responseObject  = productService.updateProduct(data);
 
+        Result result = getResult(responseObject);
+
+        return new ResponseEntity<>(result.responseDataNode(), result.returnStatus());
+    }
+
+    private Result getResult(ResponseEntity<Object> responseObject) {
         Object responseBody = responseObject.getBody();
         HttpStatusCode status = responseObject.getStatusCode();
 
         HttpStatus returnStatus = HttpStatus.valueOf(status.value());
         JsonNode responseDataNode = objectMapper.valueToTree(responseBody);
+        Result result = new Result(returnStatus, responseDataNode);
+        return result;
+    }
 
-        return new ResponseEntity<>(responseDataNode, returnStatus);
+    private record Result(HttpStatus returnStatus, JsonNode responseDataNode) {
     }
 }

@@ -23,9 +23,11 @@ public class ProductService {
     @Autowired
     private ObjectMapper objectMapper;
 
-    public Product saveProduct(Product product) {
+    public ResponseEntity<Object> saveProduct(Product product) {
         // Logic to save the product
-        return productRepository.save(product);
+        Product saved = productRepository.save(product);
+        ResponseEntity<Object> responseEntity = getObjectResponseEntity(saved, "Product saved successfully with id: " + saved.getId());
+        return responseEntity;
     }
 
     public Product getProductById(Long id) {
@@ -44,18 +46,22 @@ public class ProductService {
             existingProduct.setName(product.getName());
             existingProduct.setQuantity(product.getQuantity());
             existingProduct.setPrice(product.getPrice());
-
-            JsonNode responseNode = objectMapper.valueToTree(existingProduct);
-            APISuccessResponseModel model = new APISuccessResponseModel();
-            model.setSuccess(Boolean.TRUE);
-            model.setMessage(AppConstants.PRODUCT_UPDATED);
-            model.setData(responseNode);
-            ResponseEntity<Object> responseEntity= new ResponseEntity<>(model, HttpStatus.OK);
+            ResponseEntity<Object> responseEntity = getObjectResponseEntity(existingProduct, "Product updated successfully with id: " + existingProduct.getId());
 
             return responseEntity;
             //return productRepository.save(existingProduct);
         } else {
             throw new RuntimeException("Product not found with id: " + product.getId());
         }
+    }
+
+    private ResponseEntity<Object> getObjectResponseEntity(Product existingProduct, String message) {
+        JsonNode responseNode = objectMapper.valueToTree(existingProduct);
+        APISuccessResponseModel model = new APISuccessResponseModel();
+        model.setSuccess(Boolean.TRUE);
+        model.setMessage(message);
+        model.setData(responseNode);
+        ResponseEntity<Object> responseEntity= new ResponseEntity<>(model, HttpStatus.OK);
+        return responseEntity;
     }
 }
